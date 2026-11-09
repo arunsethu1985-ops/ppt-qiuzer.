@@ -1,1 +1,132 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SlideSpark | AI PPT Quiz</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="container">
+    <header class="header">
+      <div class="logo">✦ SlideSpark</div>
+      <div class="tagline">Your PowerPoint. Your Quiz.</div>
+    </header>
+
+    <section id="setupScreen" class="card">
+      <div class="hero-icon">📚</div>
+      <h1>AI PowerPoint Quiz Generator</h1>
+      <p class="subtitle">
+        Upload your presentation and create an interactive
+        quiz based on its slides.
+      </p>
+
+      <label for="pptFile" class="upload-box">
+        <span class="upload-icon">📂</span>
+        <strong>Choose your PowerPoint</strong>
+        <span>Click to upload a .pptx file</span>
+      </label>
+
+      <input
+        type="file"
+        id="pptFile"
+        accept=".pptx"
+        hidden
+      >
+
+      <p id="fileName" class="file-name">
+        No presentation selected
+      </p>
+
+      <label for="studentName">Student Name</label>
+      <input
+        type="text"
+        id="studentName"
+        placeholder="Example: Jiya"
+        value="Jiya"
+        maxlength="50"
+      >
+
+      <label for="instructions">Quiz Instructions</label>
+      <textarea
+        id="instructions"
+        rows="3"
+        placeholder="Describe the quiz you want..."
+      >Create 3 multiple-choice, 2 one-word, 2 short-answer and 3 long-answer questions. Use only the PPT.</textarea>
+
+      <label for="questionCount">Number of Questions</label>
+      <select id="questionCount">
+        <option value="1">1 Question</option>
+        <option value="5">5 Questions</option>
+        <option value="10" selected>10 Questions</option>
+        <option value="15">15 Questions</option>
+        <option value="20">20 Questions</option>
+      </select>
+
+      <button id="generateBtn" class="primary-btn">
+        ✨ Generate Quiz
+      </button>
+
+      <p id="statusMessage" class="status" role="status"></p>
+    </section>
+
+    <section id="quizScreen" class="card hidden">
+      <div class="quiz-top">
+        <span id="studentLabel"></span>
+        <span id="questionNumber"></span>
+      </div>
+
+      <div class="progress-track">
+        <div id="progressBar" class="progress-bar"></div>
+      </div>
+
+      <div class="question-tags">
+        <span id="questionType" class="tag"></span>
+        <span id="slideNumber" class="tag slide-tag"></span>
+      </div>
+
+      <h2 id="questionText"></h2>
+
+      <div id="answerArea"></div>
+
+      <button id="submitBtn" class="primary-btn">
+        Check Answer
+      </button>
+
+      <div id="feedback" class="feedback hidden"></div>
+
+      <button id="nextBtn" class="secondary-btn hidden">
+        Next Question →
+      </button>
+    </section>
+
+    <section id="resultScreen" class="card hidden">
+      <div class="hero-icon">🏆</div>
+      <h1>Quiz Completed!</h1>
+      <h2 id="resultName"></h2>
+      <div id="finalScore" class="score"></div>
+      <p id="resultMessage"></p>
+
+      <button id="restartBtn" class="primary-btn">
+        Try Quiz Again
+      </button>
+
+      <button id="newQuizBtn" class="secondary-btn">
+        Create New Quiz
+      </button>
+    </section>
+
+    <footer>
+      SlideSpark • Learn smarter with AI
+    </footer>
+  </main>
+
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"
+    defer
+  ></script>
+  <script src="script.js" defer></script>
+</body>
+</html>
+
