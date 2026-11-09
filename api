@@ -1,1 +1,306 @@
 
+const API_URL = "https://api.openai.com/v1/chat/completions";
+
+const VALID_TYPES = new Set([
+  "mcq",
+  "one_word",
+  "short",
+  "long"
+]);
+
+function normalize(text) {
+  return String(text)
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function validateQuestions(items, slides, requestedCount) {
+  if (!Array.isArray(items)) {
+    throw new Error("AI returned an invalid question list.");
+  }
+
+  const slideMap = new Map(
+    slides.map((slide) => [slide.number, slide.text])
+  );
+
+  const result = [];
+
+  for (const item of items) {
+    if (!VALID_TYPES.has(item.type)) {
+      throw new Error("AI returned an unsupported question type.");
+    }
+
+    const slideNumber = Number(item.slideNumber);
+    const sourceText = slideMap.get(slideNumber);
+
+    if (!sourceText) {
+      throw new Error(
+        `AI referred to a missing slide: ${slideNumber}.`
+      );
+    }
+
+    const question = String(item.question || "").trim();
+    const answer = String(item.answer || "").trim();
+    const explanation = String(item.explanation || "").trim();
+    const evidence = String(item.evidence || "").trim();
+
+    if (!question || !answer || !explanation || !evidence) {
+      throw new Error("AI returned an incomplete question.");
+    }
+
+    if (!normalize(sourceText).includes(normalize(evidence))) {
+      throw new Error(
+        `A generated question could not be verified against slide ${slideNumber}. Please try again.`
+      );
+    }
+
+    const cleaned = {
+      type: item.type,
+      question,
+      answer,
+      explanation,
+      evidence,
+      slideNumber
+    };
+
+    if (item.type === "mcq") {
+      if (
+        !Array.isArray(item.options) ||
+        item.options.length !== 4
+      ) {
+        throw new Error("AI returned invalid MCQ options.");
+      }
+
+      const options = item.options.map((option) =>
+        String(option).trim()
+      );
+
+      const correctIndex = Number(item.correctIndex);
+
+      if (
+        !options.every(Boolean) ||
+        new Set(options.map(normalize)).size !== 4 ||
+        !Number.isInteger(correctIndex) ||
+        correctIndex < 0 ||
+        correctIndex > 3
+      ) {
+        throw new Error("AI returned an invalid MCQ answer.");
+      }
+
+      if (normalize(options[correctIndex]) !== normalize(answer)) {
+        throw new Error("AI returned an inconsistent MCQ answer.");
+      }
+
+      cleaned.options = options;
+      cleaned.correctIndex = correctIndex;
+    }
+
+    result.push(cleaned);
+  }
+
+  if (result.length !== requestedCount) {
+    throw new Error(
+      `AI generated ${result.length} questions instead of ${requestedCount}. Please retry.`
+    );
+  }
+
+  return result;
+}
+
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    res.setHeader("Allow", "POST");
+    return res.status(405).json({
+      error: "Only POST requests are supported."
+    });
+  }
+
+  const apiKey = process.env.OPENAI_API_KEY;
+
+  if (!apiKey) {
+    return res.status(500).json({
+      error: "OPENAI_API_KEY is missing in Vercel."
+    });
+  }
+
+  try {
+    const body = req.body || {};
+    const count = Number(body.count);
+    const instructions = String(body.instructions || "")
+      .slice(0, 1500);
+
+    if (
+      !Number.isInteger(count) ||
+      count < 1 ||
+      count > 20
+    ) {
+      return res.status(400).json({
+        error: "Question count must be between 1 and 20."
+      });
+    }
+
+    if (!Array.isArray(body.slides) || body.slides.length === 0) {
+      return res.status(400).json({
+        error: "No slide text received."
+      });
+    }
+
+    const slides = body.slides
+      .filter((slide) =>
+        Number.isInteger(Number(slide.number)) &&
+        Number(slide.number) > 0 &&
+        typeof slide.text === "string" &&
+        slide.text.trim()
+      )
+      .slice(0, 100)
+      .map((slide) => ({
+        number: Number(slide.number),
+        text: slide.text.slice(0, 6000)
+      }));
+
+    if (!slides.length) {
+      return res.status(400).json({
+        error: "No readable slide content found."
+      });
+    }
+
+    const source = slides
+      .map((slide) =>
+        `SLIDE ${slide.number}\n${slide.text}`
+      )
+      .join("\n\n")
+      .slice(0, 55000);
+
+    const systemPrompt = `
+You are a careful educational quiz generator.
+
+Create questions ONLY from the supplied PowerPoint text.
+
+STRICT RULES:
+1. Never invent facts, concepts, or examples.
+2. Never use outside knowledge to create answers.
+3. Every answer must be directly supported by the slides.
+4. Every question must identify its exact source slide.
+5. Every question must include "evidence": an EXACT
+   consecutive quote copied from that slide's text.
+6. Do not paraphrase the evidence field.
+7. Do not test facts that are not explicitly taught.
+8. Avoid duplicate questions.
+9. Make questions understandable for school students.
+10. Write clear answers and explanations.
+11. If source content is limited, use simple questions
+    about distinct facts from the actual source.
+12. Return exactly the requested number of questions.
+13. Return JSON only, no Markdown.
+
+Question types:
+- "mcq": four choices, one correct answer
+- "one_word": answer in one word whenever possible
+- "short": short written answer
+- "long": answer in a few sentences
+
+For mcq:
+- options must be an array of exactly four strings.
+- correctIndex is a zero-based index (0, 1, 2, or 3).
+- answer must match options[correctIndex] exactly.
+
+For other types:
+- use options: [] and correctIndex: -1.
+
+When the requested count is 10 and the instructions
+do not specify a different distribution, use:
+3 mcq, 2 one_word, 2 short, 3 long.
+
+If the user specifies a distribution, follow it
+where it agrees with the requested total.
+
+JSON format:
+{
+  "questions": [
+    {
+      "type": "mcq",
+      "question": "Question text",
+      "options": ["Choice A", "Choice B", "Choice C", "Choice D"],
+      "correctIndex": 0,
+      "answer": "Choice A",
+      "explanation": "Explanation based on the slide",
+      "slideNumber": 1,
+      "evidence": "Exact quote from slide"
+    }
+  ]
+}
+`;
+
+    const userPrompt = `
+Generate exactly ${count} questions.
+
+Teacher's instructions:
+${instructions || "Create an educational quiz."}
+
+Presentation content:
+${source}
+`;
+
+    const response = await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        temperature: 0.2,
+        max_tokens: 8000,
+        response_format: {
+          type: "json_object"
+        },
+        messages: [
+          {
+            role: "system",
+            content: systemPrompt
+          },
+          {
+            role: "user",
+            content: userPrompt
+          }
+        ]
+      })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      console.error("AI API error:", result.error?.message);
+
+      return res.status(502).json({
+        error:
+          "AI service error. Check your API key, account credits, and model access."
+      });
+    }
+
+    const content = result.choices?.[0]?.message?.content;
+
+    if (!content) {
+      throw new Error("AI returned an empty response.");
+    }
+
+    const parsed = JSON.parse(content);
+    const questions = validateQuestions(
+      parsed.questions,
+      slides,
+      count
+    );
+
+    return res.status(200).json({
+      questions
+    });
+  } catch (error) {
+    console.error("Quiz generation error:", error.message);
+
+    return res.status(500).json({
+      error: error.message || "Could not generate quiz."
+    });
+  }
+}
+
