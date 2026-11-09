@@ -3,550 +3,67 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#080c1a">
-  <title>SlideSpark AI | PowerPoint Quiz Generator</title>
-
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&display=swap');
-
-    :root {
-      --bg: #080c1a;
-      --surface: #141d35;
-      --purple: #9565ff;
-      --blue: #39bdf8;
-      --mint: #45e6c0;
-      --white: #f9fbff;
-      --muted: #a4b2cc;
-      --border: rgba(181,197,237,.17);
-    }
-
-    * { box-sizing: border-box; }
-
-    body {
-      margin: 0;
-      min-height: 100vh;
-      font-family: 'DM Sans', sans-serif;
-      background:
-        radial-gradient(ellipse at 10% 0%, #29204d 0%, transparent 40%),
-        radial-gradient(ellipse at 95% 20%, #102949 0%, transparent 40%),
-        var(--bg);
-      color: var(--white);
-    }
-
-    .container {
-      max-width: 1100px;
-      margin: auto;
-      padding: 0 20px;
-    }
-
-    .hidden { display: none !important; }
-
-    .header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 25px 0;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .logo {
-      font-family: 'Outfit', sans-serif;
-      font-size: 27px;
-      font-weight: 800;
-    }
-
-    .logo span { color: var(--blue); }
-
-    .tagline {
-      color: var(--muted);
-      font-size: 12px;
-      letter-spacing: 1px;
-    }
-
-    .nav-badge {
-      padding: 9px 14px;
-      color: var(--mint);
-      background: rgba(69,230,192,.09);
-      border: 1px solid rgba(69,230,192,.2);
-      border-radius: 30px;
-      font-size: 11px;
-      font-weight: 800;
-    }
-
-    .hero {
-      text-align: center;
-      padding: 65px 0 30px;
-    }
-
-    .eyebrow {
-      display: inline-block;
-      padding: 10px 17px;
-      border: 1px solid rgba(149,101,255,.4);
-      border-radius: 30px;
-      color: #d2baff;
-      background: rgba(149,101,255,.1);
-      font-size: 12px;
-      font-weight: 800;
-    }
-
-    h1, h2, h3 {
-      font-family: 'Outfit', sans-serif;
-    }
-
-    .hero h1 {
-      font-size: clamp(39px, 6vw, 74px);
-      line-height: 1.09;
-      letter-spacing: -2px;
-      margin: 25px auto 19px;
-    }
-
-    .gradient-text {
-      background: linear-gradient(100deg, #b68cff, #6fd2ff, #56f3d2);
-      background-clip: text;
-      -webkit-background-clip: text;
-      color: transparent;
-    }
-
-    .hero p {
-      max-width: 620px;
-      margin: auto;
-      color: var(--muted);
-      font-size: 16px;
-      line-height: 1.8;
-    }
-
-    .features {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 12px;
-      margin-top: 25px;
-    }
-
-    .pill {
-      padding: 10px 14px;
-      border: 1px solid var(--border);
-      border-radius: 25px;
-      color: #c8d5ec;
-      font-size: 12px;
-    }
-
-    .workspace {
-      max-width: 850px;
-      margin: 35px auto 75px;
-      padding: 2px;
-      border-radius: 26px;
-      background: linear-gradient(135deg, #7550c4, #243b69, #218b8b);
-    }
-
-    .card {
-      padding: 39px;
-      border-radius: 24px;
-      background: linear-gradient(145deg, #171f39, #0e152a);
-      box-shadow: 0 25px 60px rgba(0,0,0,.3);
-    }
-
-    .section-heading {
-      display: flex;
-      gap: 15px;
-      align-items: center;
-      margin-bottom: 28px;
-    }
-
-    .step-icon {
-      display: grid;
-      place-items: center;
-      width: 50px;
-      height: 50px;
-      border-radius: 14px;
-      background: rgba(149,101,255,.2);
-      font-size: 25px;
-    }
-
-    .section-heading h2 {
-      margin: 0 0 5px;
-      font-size: 24px;
-    }
-
-    .section-heading p {
-      margin: 0;
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    .upload-box {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      gap: 10px;
-      padding: 35px 20px;
-      border: 2px dashed rgba(149,101,255,.65);
-      border-radius: 18px;
-      background: rgba(149,101,255,.065);
-      cursor: pointer;
-      transition: .2s;
-    }
-
-    .upload-box:hover {
-      border-color: var(--blue);
-      background: rgba(57,189,248,.08);
-    }
-
-    .upload-icon { font-size: 42px; }
-
-    .upload-box strong { font-size: 18px; }
-
-    .upload-box .sub {
-      font-size: 13px;
-      color: var(--muted);
-    }
-
-    .size-badge {
-      margin-top: 5px;
-      padding: 8px 14px;
-      border-radius: 30px;
-      background: rgba(69,230,192,.1);
-      color: var(--mint);
-      font-size: 12px;
-      font-weight: 800;
-    }
-
-    .file-name {
-      text-align: center;
-      color: var(--mint);
-      font-size: 13px;
-      margin: 15px 0 25px;
-      overflow-wrap: anywhere;
-    }
-
-    .form-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
-    }
-
-    .field { margin-bottom: 23px; }
-
-    .field label {
-      display: block;
-      font-size: 13px;
-      font-weight: 700;
-      margin-bottom: 10px;
-      color: #d5def2;
-    }
-
-    .field input,
-    .field select,
-    .field textarea {
-      width: 100%;
-      padding: 15px;
-      background: #0b1327;
-      color: var(--white);
-      border: 1px solid #36405b;
-      border-radius: 12px;
-      font: inherit;
-      outline: none;
-    }
-
-    .field textarea {
-      min-height: 115px;
-      resize: vertical;
-      line-height: 1.6;
-    }
-
-    .field select option { background: #172039; }
-
-    .field input:focus,
-    .field select:focus,
-    .field textarea:focus {
-      border-color: var(--purple);
-    }
-
-    .primary-btn, .secondary-btn {
-      display: block;
-      width: 100%;
-      padding: 17px;
-      border-radius: 12px;
-      font: inherit;
-      font-weight: 800;
-      cursor: pointer;
-      margin-top: 16px;
-    }
-
-    .primary-btn {
-      border: none;
-      color: #fff;
-      background: linear-gradient(100deg, #8858f8, #518af9, #32bdeb);
-      box-shadow: 0 10px 30px rgba(94,93,250,.25);
-    }
-
-    .secondary-btn {
-      background: rgba(149,101,255,.1);
-      border: 1px solid var(--purple);
-      color: #cab8ff;
-    }
-
-    button:disabled {
-      opacity: .55;
-      cursor: not-allowed;
-    }
-
-    .status {
-      text-align: center;
-      font-size: 13px;
-      color: var(--muted);
-      line-height: 1.7;
-    }
-
-    .status.error { color: #ff8199; }
-
-    .note {
-      text-align: center;
-      color: var(--muted);
-      font-size: 11px;
-      line-height: 1.6;
-      margin-top: 20px;
-    }
-
-    .quiz-top {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      font-weight: 700;
-      color: #d4c7ff;
-    }
-
-    #questionNumber {
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    .progress-track {
-      height: 9px;
-      margin: 22px 0 30px;
-      border-radius: 20px;
-      background: #303a55;
-      overflow: hidden;
-    }
-
-    .progress-bar {
-      height: 100%;
-      width: 0%;
-      background: linear-gradient(90deg, var(--purple), var(--blue), var(--mint));
-      transition: width .3s;
-    }
-
-    .question-tags {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    .tag {
-      padding: 8px 13px;
-      background: rgba(149,101,255,.15);
-      color: #d9c9ff;
-      border-radius: 9px;
-      font-size: 12px;
-      font-weight: 700;
-    }
-
-    .slide-tag {
-      color: #8ce5ff;
-      background: rgba(57,189,248,.12);
-    }
-
-    #questionText {
-      font-size: clamp(22px, 3vw, 32px);
-      line-height: 1.4;
-      margin: 25px 0;
-    }
-
-    .option {
-      display: block;
-      width: 100%;
-      padding: 17px;
-      margin: 11px 0;
-      border: 1px solid #394660;
-      border-radius: 12px;
-      color: #e1e9fa;
-      background: #19233d;
-      text-align: left;
-      font: inherit;
-      cursor: pointer;
-    }
-
-    .option.selected {
-      border-color: var(--purple);
-      background: #2c2450;
-    }
-
-    .option.correct {
-      border-color: var(--mint);
-      background: #123c36;
-    }
-
-    .option.wrong {
-      border-color: #ff8199;
-      background: #482436;
-    }
-
-    .answer-input {
-      width: 100%;
-      min-height: 130px;
-      padding: 17px;
-      border: 1px solid #394660;
-      border-radius: 12px;
-      color: white;
-      background: #101b32;
-      font: inherit;
-      resize: vertical;
-    }
-
-    .feedback {
-      padding: 20px;
-      margin-top: 20px;
-      background: #1a2a42;
-      border: 1px solid #376389;
-      border-radius: 13px;
-      line-height: 1.8;
-      overflow-wrap: anywhere;
-    }
-
-    .feedback.success {
-      border-color: var(--mint);
-      background: #153a35;
-    }
-
-    .feedback.error {
-      border-color: #ff8199;
-      background: #402638;
-    }
-
-    .feedback p { margin: 10px 0; }
-
-    #resultScreen {
-      text-align: center;
-      padding-top: 55px;
-      padding-bottom: 55px;
-    }
-
-    .trophy { font-size: 65px; }
-
-    .score {
-      font-family: 'Outfit', sans-serif;
-      font-size: 75px;
-      font-weight: 900;
-      color: var(--blue);
-      margin: 24px 0;
-    }
-
-    #resultMessage {
-      color: var(--muted);
-      line-height: 1.7;
-    }
-
-    .result-buttons {
-      max-width: 430px;
-      margin: 30px auto 0;
-    }
-
-    footer {
-      padding: 25px;
-      text-align: center;
-      color: var(--muted);
-      font-size: 12px;
-      border-top: 1px solid var(--border);
-    }
-
-    @media (max-width: 650px) {
-      .hero { padding-top: 45px; }
-      .card { padding: 24px 19px; }
-      .form-grid { grid-template-columns: 1fr; gap: 0; }
-      .tagline { display: none; }
-      .hero h1 { letter-spacing: -1px; }
-    }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080d20">
+  <title>SlideSpark AI | PPT Quiz Generator</title>
+  <link rel="stylesheet" href="/style.css">
 </head>
-
 <body>
-  <div class="container">
+  <div class="page">
+    <nav class="navbar">
+      <div class="brand">
+        <span class="brand-icon">✦</span>
+        Slide<span>Spark</span>
+      </div>
+      <div class="nav-tag">AI LEARNING STUDIO</div>
+    </nav>
 
-    <header class="header">
-      <div class="logo">✦ Slide<span>Spark</span></div>
-      <div class="tagline">YOUR POWERPOINT. YOUR QUIZ.</div>
-      <div class="nav-badge">● AI POWERED</div>
+    <header class="hero">
+      <div class="eyebrow">✦ THE SMARTER WAY TO STUDY</div>
+      <h1>Turn your slides into<br>
+        <span>brilliant quizzes.</span>
+      </h1>
+      <p>
+        Upload a presentation, read slide content,
+        and practice questions one by one.
+      </p>
+      <div class="chips">
+        <span>✓ Local Slide Reading</span>
+        <span>✓ 30 MB PPTX</span>
+        <span>✓ Slide References</span>
+        <span>✓ Instant Feedback</span>
+      </div>
     </header>
 
-    <section class="hero">
-      <div class="eyebrow">✨ THE SMARTER WAY TO STUDY</div>
-
-      <h1>
-        Turn your slides into<br>
-        <span class="gradient-text">brilliant quizzes.</span>
-      </h1>
-
-      <p>
-        Upload your PowerPoint, generate AI questions
-        and learn one question at a time.
-        Practice smarter with answers and slide references.
-      </p>
-
-      <div class="features">
-        <div class="pill">✓ PowerPoint Questions</div>
-        <div class="pill">✓ One-by-One Quiz</div>
-        <div class="pill">✓ Slide References</div>
-        <div class="pill">✓ Instant Feedback</div>
-      </div>
-    </section>
-
-    <div class="workspace">
-
-      <section id="setupScreen" class="card">
-
-        <div class="section-heading">
-          <div class="step-icon">🚀</div>
+    <main class="workspace">
+      <section id="setupScreen" class="panel">
+        <div class="section-head">
+          <div class="section-icon">🚀</div>
           <div>
             <h2>Create your quiz</h2>
-            <p>Personalize your learning experience.</p>
+            <p>Upload your presentation and customize it.</p>
           </div>
         </div>
 
-        <label for="pptFile" class="upload-box">
-          <div class="upload-icon">📤</div>
-          <strong>Upload your PowerPoint</strong>
-          <span class="sub">Click here to select a PPTX file</span>
-          <span class="size-badge">Supports files up to 30 MB</span>
+        <label for="pptFile" class="upload-area">
+          <span class="upload-icon">📤</span>
+          <strong>Choose your PowerPoint</strong>
+          <span>Click to browse your presentation</span>
+          <small>Supports PPTX up to 30 MB</small>
         </label>
-
-        <input
-          type="file"
-          id="pptFile"
-          accept=".pptx"
-          hidden
-        >
-
-        <p id="fileName" class="file-name">
+        <input id="pptFile" type="file" accept=".pptx" hidden>
+        <div id="fileName" class="file-name">
           No presentation selected
-        </p>
+        </div>
 
         <div class="form-grid">
           <div class="field">
-            <label for="studentName">👤 Student Name</label>
-            <input
-              type="text"
-              id="studentName"
-              value="Jiya"
-              placeholder="Enter student name"
-              maxlength="50"
-            >
+            <label for="studentName">Student Name</label>
+            <input id="studentName" value="Jiya"
+              maxlength="50" placeholder="Student name">
           </div>
-
           <div class="field">
-            <label for="questionCount">🎯 Number of Questions</label>
+            <label for="questionCount">Questions</label>
             <select id="questionCount">
               <option value="1">1 Question</option>
               <option value="5">5 Questions</option>
@@ -558,98 +75,83 @@
         </div>
 
         <div class="field">
-          <label for="instructions">
-            🧠 Quiz Instructions
-          </label>
+          <label for="quizMode">Question Generator</label>
+          <select id="quizMode">
+            <option value="auto">
+              Smart Mode (AI with local fallback)
+            </option>
+            <option value="local">
+              Local Mode (No API key required)
+            </option>
+            <option value="ai">
+              AI Mode (Requires API key)
+            </option>
+          </select>
+        </div>
 
-          <textarea
-            id="instructions"
-            rows="4"
-          >Create 3 multiple-choice, 2 one-word, 2 short-answer and 3 long-answer questions. Use only the PPT. Include slide numbers and explanations.</textarea>
+        <div class="field">
+          <label for="instructions">Quiz Instructions</label>
+          <textarea id="instructions" rows="4">Create 3 multiple-choice, 2 one-word, 2 short-answer, and 3 long-answer questions. Use only the PPT and show slide numbers.</textarea>
         </div>
 
         <button id="generateBtn" class="primary-btn">
           ✨ Generate My Quiz
         </button>
-
-        <p id="statusMessage" class="status" role="status"></p>
-
-        <div class="note">
-          🔒 Slide text is extracted in your browser
-          and sent to the AI service to generate questions.
-        </div>
-
+        <p id="statusMessage" class="status" role="status"
+           aria-live="polite"></p>
+        <p class="note">
+          Local OCR runs in your browser. AI Mode sends
+          extracted slide text to the AI provider.
+        </p>
       </section>
 
-      <section id="quizScreen" class="card hidden">
-
+      <section id="quizScreen" class="panel hidden">
         <div class="quiz-top">
-          <span id="studentLabel">Student</span>
-          <span id="questionNumber">Question 1 of 10</span>
+          <strong id="studentLabel"></strong>
+          <span id="questionNumber"></span>
         </div>
-
         <div class="progress-track">
           <div id="progressBar" class="progress-bar"></div>
         </div>
-
         <div class="question-tags">
           <span id="questionType" class="tag"></span>
-          <span id="slideNumber" class="tag slide-tag"></span>
+          <span id="slideNumber" class="tag secondary-tag"></span>
         </div>
-
         <h2 id="questionText"></h2>
-
         <div id="answerArea"></div>
-
         <button id="submitBtn" class="primary-btn">
-          ✓ Check My Answer
+          Check Answer
         </button>
-
         <div id="feedback" class="feedback hidden"></div>
-
         <button id="nextBtn" class="secondary-btn hidden">
           Next Question →
         </button>
-
       </section>
 
-      <section id="resultScreen" class="card hidden">
-
+      <section id="resultScreen" class="panel result hidden">
         <div class="trophy">🏆</div>
-
-        <h1>Quiz Completed!</h1>
-
+        <h1>Quiz Complete!</h1>
         <h2 id="resultName"></h2>
-
         <div id="finalScore" class="score"></div>
-
         <p id="resultMessage"></p>
-
-        <div class="result-buttons">
-          <button id="restartBtn" class="primary-btn">
-            ↻ Try Quiz Again
-          </button>
-
-          <button id="newQuizBtn" class="secondary-btn">
-            ✦ Create New Quiz
-          </button>
-        </div>
-
+        <button id="restartBtn" class="primary-btn">
+          ↻ Try Quiz Again
+        </button>
+        <button id="newQuizBtn" class="secondary-btn">
+          ✦ Create New Quiz
+        </button>
       </section>
+    </main>
 
-    </div>
-
-    <footer>
-      ✦ SlideSpark AI — Turn Every Slide Into Knowledge.
-    </footer>
-
+    <footer>✦ SlideSpark AI — Turn Every Slide Into Knowledge</footer>
   </div>
 
-  <script
-    src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"
-    defer
-  ></script>
-
-  <script src="script.js" defer></script>
+  <script defer
+    src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js">
+  </script>
+  <script defer
+    src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js">
+  </script>
+  <script defer src="/script.js"></script>
 </body>
 </html>
