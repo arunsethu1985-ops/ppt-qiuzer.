@@ -1,10 +1,9 @@
 
 {
-  "name": "slidespark-ppt-quiz",
-  "version": "1.0.0",
+  "name": "slidespark-ai-quiz",
+  "version": "3.1.0",
   "private": true,
   "type": "module",
-  "description": "AI-powered PowerPoint quiz generator",
   "engines": {
     "node": ">=20"
   }
