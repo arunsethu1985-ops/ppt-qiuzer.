@@ -3,58 +3,69 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#080e22">
-  <title>SlideSpark AI | Free PPT Quizzer</title>
+  <title>SlideSpark AI | Free PowerPoint Quiz</title>
   <link rel="stylesheet" href="./style.css">
 </head>
 <body>
 <main class="shell">
 
   <nav class="nav">
-    <div class="logo">✦ Slide<span>Spark</span></div>
+    <div class="logo">
+      ✦ Slide<span>Spark</span>
+    </div>
     <span class="nav-tag">FREE BROWSER AI</span>
   </nav>
 
   <header class="hero">
-    <span class="eyebrow">POWERPOINT TO KNOWLEDGE</span>
-    <h1>Turn slides into <em>brilliant quizzes.</em></h1>
+    <div class="eyebrow">
+      POWERPOINT → KNOWLEDGE
+    </div>
+    <h1>
+      Turn slides into
+      <em>brilliant quizzes.</em>
+    </h1>
     <p>
-      Learn directly from your PowerPoint.
-      Generate questions, practise answers,
-      and see the supporting slide.
+      Study your PowerPoint with AI-generated
+      questions, correct answers, explanations
+      and slide references.
     </p>
     <div class="chips">
       <span>✓ No API key</span>
-      <span>✓ PPTX up to 30 MB</span>
+      <span>✓ 30 MB PPTX</span>
       <span>✓ Image OCR</span>
+      <span>✓ Free browser AI</span>
     </div>
   </header>
 
   <section id="setupScreen" class="panel">
     <div class="section-head">
-      <span class="tile">🚀</span>
+      <div class="tile">🚀</div>
       <div>
         <h2>Create your quiz</h2>
-        <p>Powered by free browser AI.</p>
+        <p>Faster question generation</p>
       </div>
     </div>
 
     <label class="upload" for="pptFile">
-      <span class="upload-icon">📤</span>
-      <strong>Upload PowerPoint</strong>
-      <span>Choose a .pptx file (maximum 30 MB)</span>
+      <div class="upload-icon">📤</div>
+      <strong>Select PowerPoint</strong>
+      <span>.pptx, maximum 30 MB</span>
     </label>
-
-    <input id="pptFile" type="file" accept=".pptx" hidden>
-    <p id="fileName" class="filename">No file selected</p>
+    <input id="pptFile" type="file"
+           accept=".pptx" hidden>
+    <p id="fileName" class="filename">
+      No file selected
+    </p>
 
     <div class="fields">
       <label>
         Student name
-        <input id="studentName" value="Jiya" maxlength="50">
+        <input id="studentName"
+               value="Jiya" maxlength="50">
       </label>
-
       <label>
         Number of questions
         <select id="questionCount">
@@ -67,111 +78,49 @@
     </div>
 
     <label class="field">
-      AI model
-      <select id="modelSize">
-        <option value="small" selected>
-          Lightweight — recommended
+      Slide reading speed
+      <select id="readMode">
+        <option value="fast" selected>
+          Fast — OCR up to 2 pictures per slide
         </option>
-        <option value="better">
-          Better quality — needs more memory
+        <option value="thorough">
+          Thorough — OCR up to 5 pictures per slide
+        </option>
+        <option value="text">
+          Text only — fastest
         </option>
       </select>
     </label>
 
     <label class="field">
       Quiz instructions
-      <textarea id="instructions" rows="4">Create meaningful questions from the PowerPoint only. For 10 questions, create 3 MCQs, 2 one-word, 2 short-answer and 3 detailed-answer questions. Avoid random fill-in-the-blanks and vague questions. Show answers, explanations and slide references.</textarea>
+      <textarea id="instructions" rows="4">Create meaningful educational questions using only the PowerPoint. For 10 questions use 3 multiple-choice, 2 one-word, 2 short-answer and 3 detailed-answer questions. Avoid vague questions, random blanks and invented facts. Include answers and slide references.</textarea>
     </label>
 
-    <button id="generateBtn" class="primary" type="button">
+    <button id="generateBtn"
+            class="primary" type="button">
       ✦ Generate quiz
     </button>
 
     <div class="progress-box">
       <div class="track">
-        <div class="bar" id="loadingBar"></div>
+        <div id="loadingBar" class="bar"></div>
       </div>
-
       <p id="statusMessage" class="status"
          role="status" aria-live="polite">
-        Ready to upload your PowerPoint.
+        Ready to start.
       </p>
     </div>
 
-    <div id="diagnosticPanel" class="diagnostics hidden">
-      <strong>AI loading details</strong>
+    <div id="diagnosticPanel"
+         class="diagnostics hidden">
+      <strong>Technical details</strong>
       <p id="diagnosticText"></p>
-      <button id="copyErrorBtn" class="secondary" type="button">
+      <button id="copyErrorBtn"
+              class="secondary" type="button">
         Copy error details
       </button>
     </div>
 
     <small class="privacy">
-      A WebGPU-compatible browser and sufficient GPU memory
-      are required. AI models and OCR libraries are
-      downloaded from external providers. AI generation
-      happens locally after the model loads. No paid
-      OpenAI API or API key is required.
-    </small>
-  </section>
-
-  <section id="quizScreen" class="panel hidden">
-    <div class="quiz-top">
-      <strong id="studentLabel"></strong>
-      <span id="questionNumber"></span>
-    </div>
-
-    <div class="track">
-      <div id="progressBar" class="bar"></div>
-    </div>
-
-    <div class="tags">
-      <span id="questionType" class="tag"></span>
-      <span id="slideNumber" class="tag blue"></span>
-    </div>
-
-    <h2 id="questionText" class="question"></h2>
-    <div id="answerArea"></div>
-
-    <button id="submitBtn" class="primary" type="button">
-      Check answer
-    </button>
-
-    <div id="feedback" class="feedback hidden"></div>
-
-    <button id="nextBtn" class="secondary hidden" type="button">
-      Next question →
-    </button>
-  </section>
-
-  <section id="resultScreen" class="panel result hidden">
-    <span class="trophy">🏆</span>
-    <h2>Quiz complete!</h2>
-    <p id="resultName"></p>
-    <div id="finalScore" class="score"></div>
-    <p id="resultMessage"></p>
-
-    <button id="restartBtn" class="primary" type="button">
-      Try again
-    </button>
-
-    <button id="newQuizBtn" class="secondary" type="button">
-      Create new quiz
-    </button>
-  </section>
-
-  <footer>✦ SlideSpark AI · Learn from your slides</footer>
-
-</main>
-
-<script defer
-  src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js">
-</script>
-
-<script defer
-  src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js">
-</script>
-
-<script type="module" src="./script.js"></script>
-</body>
-</html>
+      Uses WebGPU and a free local AI model.
