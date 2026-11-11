@@ -1,157 +1,163 @@
 
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#080d20">
-  <title>SlideSpark AI | PPT Quiz Generator</title>
-  <link rel="stylesheet" href="/style.css">
+  <meta name="theme-color" content="#080e22">
+  <title>SlideSpark AI | PowerPoint Quiz</title>
+  <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-  <div class="page">
-    <nav class="navbar">
-      <div class="brand">
-        <span class="brand-icon">✦</span>
-        Slide<span>Spark</span>
-      </div>
-      <div class="nav-tag">AI LEARNING STUDIO</div>
+  <main class="shell">
+    <nav class="nav">
+      <div class="logo">✦ Slide<span>Spark</span></div>
+      <span class="nav-tag">AI STUDY STUDIO</span>
     </nav>
 
     <header class="hero">
-      <div class="eyebrow">✦ THE SMARTER WAY TO STUDY</div>
-      <h1>Turn your slides into<br>
-        <span>brilliant quizzes.</span>
-      </h1>
+      <span class="eyebrow">POWERPOINT → KNOWLEDGE</span>
+      <h1>Turn slides into <em>brilliant quizzes.</em></h1>
       <p>
-        Upload a presentation, read slide content,
-        and practice questions one by one.
+        Read your presentation, practise one question at a time,
+        and see exactly which slide supports the answer.
       </p>
       <div class="chips">
-        <span>✓ Local Slide Reading</span>
         <span>✓ 30 MB PPTX</span>
-        <span>✓ Slide References</span>
-        <span>✓ Instant Feedback</span>
+        <span>✓ Image text recognition</span>
+        <span>✓ Slide references</span>
       </div>
     </header>
 
-    <main class="workspace">
-      <section id="setupScreen" class="panel">
-        <div class="section-head">
-          <div class="section-icon">🚀</div>
-          <div>
-            <h2>Create your quiz</h2>
-            <p>Upload your presentation and customize it.</p>
-          </div>
+    <section id="setupScreen" class="panel">
+      <div class="section-head">
+        <span class="tile">🚀</span>
+        <div>
+          <h2>Create your quiz</h2>
+          <p>Everything starts with your presentation.</p>
         </div>
+      </div>
 
-        <label for="pptFile" class="upload-area">
-          <span class="upload-icon">📤</span>
-          <strong>Choose your PowerPoint</strong>
-          <span>Click to browse your presentation</span>
-          <small>Supports PPTX up to 30 MB</small>
+      <label class="upload" for="pptFile">
+        <span class="upload-icon">📤</span>
+        <strong>Select a PowerPoint</strong>
+        <span>Click to choose a .pptx file (up to 30 MB)</span>
+      </label>
+
+      <input type="file" id="pptFile" accept=".pptx" hidden>
+      <p id="fileName" class="filename">No file selected</p>
+
+      <div class="fields">
+        <label>
+          Student name
+          <input id="studentName" type="text"
+            value="Jiya" maxlength="50">
         </label>
-        <input id="pptFile" type="file" accept=".pptx" hidden>
-        <div id="fileName" class="file-name">
-          No presentation selected
-        </div>
 
-        <div class="form-grid">
-          <div class="field">
-            <label for="studentName">Student Name</label>
-            <input id="studentName" value="Jiya"
-              maxlength="50" placeholder="Student name">
-          </div>
-          <div class="field">
-            <label for="questionCount">Questions</label>
-            <select id="questionCount">
-              <option value="1">1 Question</option>
-              <option value="5">5 Questions</option>
-              <option value="10" selected>10 Questions</option>
-              <option value="15">15 Questions</option>
-              <option value="20">20 Questions</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="field">
-          <label for="quizMode">Question Generator</label>
-          <select id="quizMode">
-            <option value="auto">
-              Smart Mode (AI with local fallback)
-            </option>
-            <option value="local">
-              Local Mode (No API key required)
-            </option>
-            <option value="ai">
-              AI Mode (Requires API key)
-            </option>
+        <label>
+          Number of questions
+          <select id="questionCount">
+            <option value="1">1</option>
+            <option value="5">5</option>
+            <option value="10" selected>10</option>
+            <option value="15">15</option>
+            <option value="20">20</option>
           </select>
-        </div>
+        </label>
+      </div>
 
-        <div class="field">
-          <label for="instructions">Quiz Instructions</label>
-          <textarea id="instructions" rows="4">Create 3 multiple-choice, 2 one-word, 2 short-answer, and 3 long-answer questions. Use only the PPT and show slide numbers.</textarea>
-        </div>
+      <label class="field">
+        Quiz mode
+        <select id="quizMode">
+          <option value="auto">
+            Smart: AI if available, otherwise local
+          </option>
+          <option value="local">
+            Local: without an API key
+          </option>
+          <option value="ai">
+            AI only: requires API key
+          </option>
+        </select>
+      </label>
 
-        <button id="generateBtn" class="primary-btn">
-          ✨ Generate My Quiz
-        </button>
-        <p id="statusMessage" class="status" role="status"
-           aria-live="polite"></p>
-        <p class="note">
-          Local OCR runs in your browser. AI Mode sends
-          extracted slide text to the AI provider.
-        </p>
-      </section>
+      <label class="field">
+        Your instructions
+        <textarea id="instructions" rows="3">Create 3 multiple-choice, 2 one-word, 2 short-answer, and 3 answer-the-following questions. Use only the PPT.</textarea>
+      </label>
 
-      <section id="quizScreen" class="panel hidden">
-        <div class="quiz-top">
-          <strong id="studentLabel"></strong>
-          <span id="questionNumber"></span>
-        </div>
-        <div class="progress-track">
-          <div id="progressBar" class="progress-bar"></div>
-        </div>
-        <div class="question-tags">
-          <span id="questionType" class="tag"></span>
-          <span id="slideNumber" class="tag secondary-tag"></span>
-        </div>
-        <h2 id="questionText"></h2>
-        <div id="answerArea"></div>
-        <button id="submitBtn" class="primary-btn">
-          Check Answer
-        </button>
-        <div id="feedback" class="feedback hidden"></div>
-        <button id="nextBtn" class="secondary-btn hidden">
-          Next Question →
-        </button>
-      </section>
+      <button id="generateBtn" class="primary" type="button">
+        ✦ Generate quiz
+      </button>
 
-      <section id="resultScreen" class="panel result hidden">
-        <div class="trophy">🏆</div>
-        <h1>Quiz Complete!</h1>
-        <h2 id="resultName"></h2>
-        <div id="finalScore" class="score"></div>
-        <p id="resultMessage"></p>
-        <button id="restartBtn" class="primary-btn">
-          ↻ Try Quiz Again
-        </button>
-        <button id="newQuizBtn" class="secondary-btn">
-          ✦ Create New Quiz
-        </button>
-      </section>
-    </main>
+      <p id="statusMessage" class="status"
+        role="status" aria-live="polite"></p>
 
-    <footer>✦ SlideSpark AI — Turn Every Slide Into Knowledge</footer>
-  </div>
+      <small class="privacy">
+        Local OCR reads slide pictures in your browser.
+        In AI mode, the extracted slide text is sent to
+        the AI provider.
+      </small>
+    </section>
+
+    <section id="quizScreen" class="panel hidden">
+      <div class="quiz-top">
+        <strong id="studentLabel"></strong>
+        <span id="questionNumber"></span>
+      </div>
+
+      <div class="track">
+        <div id="progressBar" class="bar"></div>
+      </div>
+
+      <div class="tags">
+        <span id="questionType" class="tag"></span>
+        <span id="slideNumber" class="tag blue"></span>
+      </div>
+
+      <h2 id="questionText" class="question"></h2>
+      <div id="answerArea"></div>
+
+      <button id="submitBtn" class="primary" type="button">
+        Check answer
+      </button>
+
+      <div id="feedback" class="feedback hidden"></div>
+
+      <button id="nextBtn" class="secondary hidden" type="button">
+        Next question →
+      </button>
+    </section>
+
+    <section id="resultScreen" class="panel result hidden">
+      <span class="trophy">🏆</span>
+      <h2>Quiz complete!</h2>
+      <p id="resultName"></p>
+      <div id="finalScore" class="score"></div>
+      <p id="resultMessage"></p>
+
+      <button id="restartBtn" class="primary" type="button">
+        Try again
+      </button>
+
+      <button id="newQuizBtn" class="secondary" type="button">
+        Create a new quiz
+      </button>
+    </section>
+
+    <footer>
+      ✦ SlideSpark AI · Study with evidence
+    </footer>
+  </main>
 
   <script defer
     src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js">
   </script>
+
   <script defer
     src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js">
   </script>
-  <script defer src="/script.js"></script>
+
+  <script defer src="./script.js"></script>
 </body>
 </html>
