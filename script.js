@@ -18,7 +18,7 @@ const screens = [
 ];
 
 function show(element) {
-  screens.forEach(x => x.classList.add("hidden"));
+  screens.forEach(screen => screen.classList.add("hidden"));
   element.classList.remove("hidden");
   window.scrollTo(0, 0);
 }
@@ -28,102 +28,167 @@ function status(message, error = false) {
   $("statusMessage").classList.toggle("error", error);
 }
 
-$("pptFile").addEventListener("change", e => {
-  const file = e.target.files[0];
+// AI is the default. Local/automatic question generation is disabled
+// because the old local algorithm produced unreliable questions.
+const quizMode = $("quizMode");
+
+if (quizMode) {
+  quizMode.value = "ai";
+
+  [...quizMode.options].forEach(option => {
+    if (option.value === "ai") {
+      option.textContent = "AI only (recommended)";
+    } else {
+      option.disabled = true;
+      option.textContent += " — disabled";
+    }
+  });
+}
+
+const instructionsField = $("instructions");
+
+if (instructionsField) {
+  instructionsField.value =
+    "Create meaningful educational questions using ONLY " +
+    "the content of the uploaded PowerPoint. " +
+    "For 10 questions, use 3 MCQs, 2 one-word answers, " +
+    "2 short answers, and 3 detailed-answer questions. " +
+    "Ask clear, specific, concept-based questions. " +
+    "Do not create random fill-in-the-blank questions. " +
+    "Do not ask vague questions such as 'What does slide 5 say?' " +
+    "Do not invent facts or answers. " +
+    "Include four plausible options for MCQs, " +
+    "the correct answer, a useful explanation, " +
+    "an exact evidence quote, and the source slide number. " +
+    "If OCR text is unclear, avoid questions about it. " +
+    "Make the quiz suitable for a school student.";
+}
+
+// --------------------------------------------------
+// FILE UPLOAD
+// --------------------------------------------------
+
+$("pptFile").addEventListener("change", event => {
+  const file = event.target.files[0];
+
   if (!file) return;
 
-  if (!/\.pptx$/i.test(file.name) ||
-      file.size > MAX_FILE_SIZE) {
-    status("Choose a .pptx file no larger than 30 MB.", true);
-    e.target.value = "";
-    $("fileName").textContent = "No file selected";
+  if (!/\.pptx$/i.test(file.name)) {
+    status("Please upload a .pptx PowerPoint file.", true);
+    event.target.value = "";
+    return;
+  }
+
+  if (file.size > MAX_FILE_SIZE) {
+    status("Maximum supported file size is 30 MB.", true);
+    event.target.value = "";
     return;
   }
 
   $("fileName").textContent =
-    `✓ ${file.name} (${(file.size / 1048576).toFixed(1)} MB)`;
+    "✓ " + file.name +
+    " (" + (file.size / 1048576).toFixed(1) + " MB)";
 
-  status("Presentation ready.");
+  status("PowerPoint uploaded successfully.");
 });
 
-function xmlDoc(str) {
+// --------------------------------------------------
+// READ POWERPOINT XML
+// --------------------------------------------------
+
+function xmlDoc(content) {
   const doc = new DOMParser().parseFromString(
-    str, "application/xml"
+    content,
+    "application/xml"
   );
 
   if (doc.getElementsByTagName("parsererror").length) {
-    throw Error("Invalid slide XML.");
+    throw new Error("Could not read PowerPoint slide XML.");
   }
 
   return doc;
 }
 
 function slideText(doc) {
-  const ns =
+  const namespace =
     "http://schemas.openxmlformats.org/drawingml/2006/main";
 
-  return [...doc.getElementsByTagNameNS(ns, "p")]
-    .map(p =>
-      [...p.getElementsByTagNameNS(ns, "t")]
-        .map(t => t.textContent)
+  return [...doc.getElementsByTagNameNS(namespace, "p")]
+    .map(paragraph => {
+      return [...paragraph.getElementsByTagNameNS(
+        namespace,
+        "t"
+      )]
+        .map(node => node.textContent)
         .join("")
-        .trim()
-    )
+        .trim();
+    })
     .filter(Boolean)
     .join("\n");
 }
 
-async function imagesForSlide(zip, number, doc) {
-  const file = zip.file(
-    `ppt/slides/_rels/slide${number}.xml.rels`
+// --------------------------------------------------
+// FIND IMAGES IN EACH SLIDE
+// --------------------------------------------------
+
+async function imagesForSlide(zip, slideNumber, doc) {
+  const relFile = zip.file(
+    "ppt/slides/_rels/slide" + slideNumber + ".xml.rels"
   );
 
-  if (!file) return [];
+  if (!relFile) return [];
 
-  const rels = xmlDoc(await file.async("string"));
+  const rels = xmlDoc(await relFile.async("string"));
 
-  const byId = new Map(
+  const relationships = new Map(
     [...rels.getElementsByTagName("Relationship")]
-      .map(r => [
-        r.getAttribute("Id"),
+      .map(node => [
+        node.getAttribute("Id"),
         {
-          target: r.getAttribute("Target"),
-          type: r.getAttribute("Type") || ""
+          target: node.getAttribute("Target"),
+          type: node.getAttribute("Type") || ""
         }
       ])
   );
 
-  const ns =
+  const drawingNS =
     "http://schemas.openxmlformats.org/drawingml/2006/main";
 
-  const rns =
+  const relationshipNS =
     "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
 
   const paths = [];
 
-  for (const blip of doc.getElementsByTagNameNS(ns, "blip")) {
-    const rel = byId.get(
-      blip.getAttributeNS(rns, "embed")
+  for (const blip of doc.getElementsByTagNameNS(
+    drawingNS,
+    "blip"
+  )) {
+    const relationId = blip.getAttributeNS(
+      relationshipNS,
+      "embed"
     );
 
-    if (!rel || !rel.type.endsWith("/image") ||
-        !rel.target) {
+    const relation = relationships.get(relationId);
+
+    if (
+      !relation ||
+      !relation.type.endsWith("/image") ||
+      !relation.target
+    ) {
       continue;
     }
 
     const url = new URL(
-      rel.target,
+      relation.target,
       "https://ppt.local/ppt/slides/"
     );
 
     if (url.origin !== "https://ppt.local") continue;
 
-    const path = decodeURIComponent(
-      url.pathname.slice(1)
-    );
+    const path = decodeURIComponent(url.pathname.slice(1));
 
     if (
-      /\.(png|jpe?g|webp)$/i.test(path) &&
+      /\.(png|jpg|jpeg|webp)$/i.test(path) &&
       zip.file(path) &&
       !paths.includes(path)
     ) {
@@ -134,175 +199,235 @@ async function imagesForSlide(zip, number, doc) {
   return paths;
 }
 
+// --------------------------------------------------
+// CONVERT IMAGE FOR TEXT RECOGNITION
+// --------------------------------------------------
+
 async function imageCanvas(bytes, filename) {
-  const mime = filename.toLowerCase().endsWith(".png")
+  const lower = filename.toLowerCase();
+
+  const mime = lower.endsWith(".png")
     ? "image/png"
-    : filename.toLowerCase().endsWith(".webp")
+    : lower.endsWith(".webp")
       ? "image/webp"
       : "image/jpeg";
 
-  const url = URL.createObjectURL(
-    new Blob([bytes], { type: mime })
-  );
+  const blob = new Blob([bytes], { type: mime });
+  const url = URL.createObjectURL(blob);
 
   try {
     const img = new Image();
+
     img.src = url;
     await img.decode();
 
+    // Keep reasonably high resolution for OCR.
     const scale = Math.min(
-      1,
-      1900 / Math.max(img.width, img.height)
+      1.5,
+      2400 / Math.max(img.width, img.height)
     );
 
     const canvas = document.createElement("canvas");
 
     canvas.width = Math.max(
-      1, Math.round(img.width * scale)
+      1,
+      Math.round(img.width * scale)
     );
 
     canvas.height = Math.max(
-      1, Math.round(img.height * scale)
+      1,
+      Math.round(img.height * scale)
     );
 
     const ctx = canvas.getContext("2d");
 
-    if (!ctx) throw Error("Canvas not supported.");
+    if (!ctx) {
+      throw new Error("Canvas is not supported.");
+    }
 
     ctx.fillStyle = "#ffffff";
+
     ctx.fillRect(
-      0, 0, canvas.width, canvas.height
+      0,
+      0,
+      canvas.width,
+      canvas.height
     );
 
     ctx.drawImage(
-      img, 0, 0, canvas.width, canvas.height
+      img,
+      0,
+      0,
+      canvas.width,
+      canvas.height
     );
 
     return canvas;
-
   } finally {
     URL.revokeObjectURL(url);
   }
 }
 
+// --------------------------------------------------
+// LOAD OCR ENGINE
+// --------------------------------------------------
+
 async function getOCR() {
   if (!window.Tesseract) {
-    throw Error(
-      "OCR library could not load. Check your connection."
+    throw new Error(
+      "Image text recognition could not load. " +
+      "Check your internet connection."
     );
   }
 
   if (!ocrWorker) {
-    status("Loading English OCR language data...");
+    status("Loading image text recognition...");
 
-    ocrWorker = await Tesseract.createWorker(
-      "eng", 1
-    );
+    ocrWorker = await Tesseract.createWorker("eng", 1);
   }
 
   return ocrWorker;
 }
 
+// --------------------------------------------------
+// EXTRACT POWERPOINT SLIDES
+// --------------------------------------------------
+
 async function readPPT(file) {
   if (!window.JSZip) {
-    throw Error(
-      "PowerPoint ZIP reader did not load."
+    throw new Error(
+      "PowerPoint reader could not load. Refresh the page."
     );
   }
 
   const zip = await JSZip.loadAsync(file);
-  const files = [];
+  const slideFiles = [];
 
   zip.forEach((path, entry) => {
-    const m = /^ppt\/slides\/slide(\d+)\.xml$/.exec(path);
+    const match =
+      /^ppt\/slides\/slide(\d+)\.xml$/.exec(path);
 
-    if (m && !entry.dir) {
-      files.push({
-        number: Number(m[1]),
+    if (match && !entry.dir) {
+      slideFiles.push({
+        number: Number(match[1]),
         path
       });
     }
   });
 
-  files.sort((a, b) => a.number - b.number);
+  slideFiles.sort((a, b) => a.number - b.number);
 
-  if (!files.length) {
-    throw Error("This is not a readable PPTX file.");
+  if (!slideFiles.length) {
+    throw new Error("No readable PowerPoint slides found.");
   }
 
-  if (files.length > 100) {
-    throw Error("Maximum 100 slides supported.");
+  if (slideFiles.length > 100) {
+    throw new Error("Maximum 100 slides are supported.");
   }
 
   const slides = [];
 
-  for (let i = 0; i < files.length; i++) {
-    const s = files[i];
+  for (let i = 0; i < slideFiles.length; i++) {
+    const slide = slideFiles[i];
 
     status(
-      `Reading slide ${i + 1} of ${files.length}...`
+      "Reading slide " +
+      (i + 1) +
+      " of " +
+      slideFiles.length +
+      "..."
     );
 
-    const doc = xmlDoc(
-      await zip.file(s.path).async("string")
+    const xml = await zip.file(slide.path).async("string");
+    const doc = xmlDoc(xml);
+
+    const textParts = [];
+
+    const nativeText = slideText(doc).trim();
+
+    if (nativeText) {
+      textParts.push(nativeText);
+    }
+
+    const images = await imagesForSlide(
+      zip,
+      slide.number,
+      doc
     );
 
-    let text = slideText(doc);
-
-    const paths = await imagesForSlide(
-      zip, s.number, doc
-    );
-
-    // OCR up to three images per slide.
-    for (const path of paths.slice(0, 3)) {
+    // OCR text in embedded slide pictures.
+    // Limit images to avoid extremely slow processing.
+    for (const path of images.slice(0, 5)) {
       try {
+        status(
+          "Reading picture text on slide " +
+          slide.number +
+          "..."
+        );
+
         const bytes = await zip.file(path)
           .async("uint8array");
 
         const canvas = await imageCanvas(
-          bytes, path
+          bytes,
+          path
         );
 
         const worker = await getOCR();
 
-        status(
-          `Reading image text on slide ${s.number}...`
-        );
+        const result = await worker.recognize(canvas);
 
-        const recognized = (
-          await worker.recognize(canvas)
-        ).data.text.trim();
+        const recognizedText =
+          (result.data.text || "").trim();
 
-        if (recognized) {
-          text += "\n" + recognized;
+        const confidence =
+          Number(result.data.confidence || 0);
+
+        // Reject very unreliable OCR results.
+        if (
+          recognizedText.length >= 20 &&
+          confidence >= 40
+        ) {
+          textParts.push(recognizedText);
         }
-
-      } catch (e) {
+      } catch (error) {
         console.warn(
-          "OCR issue:", s.number, e
+          "Could not OCR image on slide",
+          slide.number,
+          error
         );
       }
     }
 
-    if (text.trim()) {
+    const combinedText = textParts
+      .join("\n")
+      .replace(/\r/g, "")
+      .replace(/[ \t]+/g, " ")
+      .trim();
+
+    if (combinedText.length >= 20) {
       slides.push({
-        number: s.number,
-        text: text.trim().slice(0, 6500)
+        number: slide.number,
+        text: combinedText.slice(0, 6500)
       });
     }
   }
 
   if (!slides.length) {
-    throw Error(
-      "No legible text detected. Use clearer slide pictures."
+    throw new Error(
+      "No readable slide text was found. " +
+      "Use clearer slide images or a PowerPoint " +
+      "with editable text."
     );
   }
 
   return slides;
 }
 
-// API: always read the raw response first.
-// This gives a useful error even if Vercel returns HTML.
+// --------------------------------------------------
+// CONNECT TO OPENAI VIA VERCEL
+// --------------------------------------------------
+
 async function aiQuiz(slides, count, instructions) {
   let response;
 
@@ -313,13 +438,15 @@ async function aiQuiz(slides, count, instructions) {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        slides, count, instructions
+        slides,
+        count,
+        instructions
       })
     });
-
   } catch {
-    throw Error(
-      "Cannot connect to the Vercel API."
+    throw new Error(
+      "Could not connect to AI server. " +
+      "Please check the internet connection."
     );
   }
 
@@ -330,243 +457,178 @@ async function aiQuiz(slides, count, instructions) {
   try {
     data = JSON.parse(raw);
   } catch {
-    throw Error(
-      `API returned HTTP ${response.status}, not JSON. ` +
-      "Check api/quiz.js and Vercel logs."
+    throw new Error(
+      "AI server returned an invalid response. " +
+      "Check the Vercel deployment logs."
     );
   }
 
   if (!response.ok) {
-    throw Error(
-      data.error || `API error ${response.status}`
+    throw new Error(
+      data.error ||
+      "AI service failed with status " + response.status
     );
   }
 
-  if (!Array.isArray(data.questions) ||
-      !data.questions.length) {
-    throw Error("No AI questions received.");
+  if (
+    !Array.isArray(data.questions) ||
+    data.questions.length !== count
+  ) {
+    throw new Error(
+      "AI did not generate the requested number " +
+      "of questions. Please retry."
+    );
+  }
+
+  // Basic browser-side checks.
+  const slideNumbers = new Set(
+    slides.map(slide => slide.number)
+  );
+
+  const seen = new Set();
+
+  for (const question of data.questions) {
+    const questionText =
+      String(question.question || "").trim();
+
+    if (
+      !questionText ||
+      !question.answer ||
+      !question.explanation ||
+      !slideNumbers.has(Number(question.slideNumber))
+    ) {
+      throw new Error(
+        "AI generated an incomplete or unsupported " +
+        "question. Please try again."
+      );
+    }
+
+    const key = questionText.toLowerCase();
+
+    if (seen.has(key)) {
+      throw new Error(
+        "AI generated duplicate questions. Please retry."
+      );
+    }
+
+    seen.add(key);
   }
 
   return data.questions;
 }
 
-// Simple rule-based offline fallback.
-// This is not a generative language model.
-function localQuiz(slides, count) {
-  const pool = [];
+// --------------------------------------------------
+// GENERATE QUIZ
+// --------------------------------------------------
 
-  for (const s of slides) {
-    for (let line of s.text.split(
-      /\n|(?<=[.!?])\s+/
-    )) {
-      line = line.replace(/\s+/g, " ").trim();
+$("generateBtn").addEventListener("click", async () => {
+  const file = $("pptFile").files[0];
 
-      if (
-        line.length >= 35 &&
-        line.length <= 240 &&
-        /[a-z]{4}/i.test(line)
-      ) {
-        pool.push({
-          line,
-          slide: s.number
-        });
-      }
-    }
+  if (!file) {
+    status("Please select a PowerPoint first.", true);
+    return;
   }
 
-  if (!pool.length) {
-    throw Error(
-      "Not enough legible text for local quiz questions."
-    );
-  }
+  const button = $("generateBtn");
 
-  const terms = [
-    ...new Set(
-      pool.flatMap(x =>
-        x.line.match(/\b[A-Za-z]{5,}\b/g) || []
-      )
-    )
-  ];
+  button.disabled = true;
+  button.textContent = "Preparing AI quiz...";
 
-  const result = [];
+  try {
+    status("Reading your PowerPoint...");
 
-  for (let i = 0; i < count; i++) {
-    const s = pool[i % pool.length];
+    const slides = await readPPT(file);
 
-    const word = (
-      s.line.match(/\b[A-Za-z]{5,}\b/g) || []
-    ).find(w =>
-      !/^(which|their|there|these|those|about|would|could|should|after|before|where|while|other|using|through)$/i.test(w)
+    const count = Number(
+      $("questionCount").value
     );
 
-    const evidence = s.line;
+    const instructions =
+      $("instructions").value.trim();
 
-    const type =
-      i % 4 === 0 ? "mcq" :
-      i % 4 === 1 ? "one_word" :
-      i % 4 === 2 ? "short" : "long";
+    status(
+      "Generating " +
+      count +
+      " meaningful AI questions from " +
+      slides.length +
+      " readable slides..."
+    );
 
-    const blank = word
-      ? s.line.replace(
-          new RegExp(`\\b${word}\\b`, "i"),
-          "____"
-        )
-      : s.line;
+    // AI ONLY. No unreliable local fallback.
+    questions = await aiQuiz(
+      slides,
+      count,
+      instructions
+    );
 
-    const q = {
-      type,
-      question:
-        "Complete this statement from the presentation: " +
-        blank,
-      answer: word || s.line,
-      explanation:
-        "This word or statement appears in the slide text.",
-      evidence,
-      slideNumber: s.slide
-    };
+    position = 0;
+    score = 0;
 
-    if (type === "mcq" && word) {
-      const wrong = terms.filter(x =>
-        x.toLowerCase() !== word.toLowerCase() &&
-        !s.line.toLowerCase().includes(
-          x.toLowerCase()
-        )
-      ).slice(0, 3);
+    renderQuestion();
+    show($("quizScreen"));
 
-      if (wrong.length === 3) {
-        q.options = [word, ...wrong];
+  } catch (error) {
+    console.error(
+      "Quiz generation error:",
+      error
+    );
 
-        q.options.push(
-          ...q.options.splice(0, i % 4)
-        );
-
-        q.correctIndex = q.options.indexOf(word);
-      } else {
-        q.type = "one_word";
-      }
-
-    } else if (
-      type === "short" ||
-      type === "long" ||
-      !word
-    ) {
-      q.type = type === "long" ? "long" : "short";
-
-      q.question =
-        `What does slide ${s.slide} state ` +
-        "about this topic? Use the slide's own wording.";
-
-      q.answer = s.line;
-    }
-
-    result.push(q);
+    status(
+      error.message || "Could not create quiz.",
+      true
+    );
+  } finally {
+    button.disabled = false;
+    button.textContent = "✦ Generate quiz";
   }
+});
 
-  return result;
-}
-
-// Start quiz generation.
-$("generateBtn").addEventListener(
-  "click",
-  async () => {
-    const file = $("pptFile").files[0];
-
-    if (!file) {
-      status(
-        "Select a PowerPoint first.", true
-      );
-      return;
-    }
-
-    const button = $("generateBtn");
-    button.disabled = true;
-    button.textContent = "Reading slides...";
-
-    try {
-      const slides = await readPPT(file);
-
-      const count = Number(
-        $("questionCount").value
-      );
-
-      const mode = $("quizMode").value;
-
-      if (mode === "local") {
-        questions = localQuiz(slides, count);
-      } else {
-        status("Generating questions...");
-
-        try {
-          questions = await aiQuiz(
-            slides,
-            count,
-            $("instructions").value.trim()
-          );
-
-        } catch (error) {
-          if (mode === "ai") throw error;
-
-          console.warn(
-            "AI fallback:", error.message
-          );
-
-          questions = localQuiz(
-            slides, count
-          );
-        }
-      }
-
-      position = 0;
-      score = 0;
-
-      renderQuestion();
-      show($("quizScreen"));
-
-    } catch (e) {
-      status(
-        e.message || "Could not create quiz.",
-        true
-      );
-      console.error(e);
-
-    } finally {
-      button.disabled = false;
-      button.textContent = "✦ Generate quiz";
-    }
-  }
-);
+// --------------------------------------------------
+// QUIZ DISPLAY HELPERS
+// --------------------------------------------------
 
 function addLine(parent, value, tag = "p") {
-  const e = document.createElement(tag);
+  const element = document.createElement(tag);
 
-  e.textContent = value;
-  parent.appendChild(e);
+  element.textContent = value;
+  parent.appendChild(element);
 
-  return e;
+  return element;
 }
 
 function renderQuestion() {
   const q = questions[position];
 
+  if (!q) return;
+
   selected = -1;
   answered = false;
 
+  const name =
+    $("studentName").value.trim() || "Student";
+
   $("studentLabel").textContent =
-    ($("studentName").value.trim() || "Student") +
-    "'s quiz";
+    name + "'s quiz";
 
   $("questionNumber").textContent =
-    `Question ${position + 1} of ${questions.length}`;
+    "Question " +
+    (position + 1) +
+    " of " +
+    questions.length;
 
   $("progressBar").style.width =
-    `${100 * (position + 1) / questions.length}%`;
+    (100 * (position + 1) / questions.length) +
+    "%";
 
-  $("questionType").textContent = ({
-    mcq: "Choose the correct answer",
+  const labels = {
+    mcq: "Multiple-choice question",
     one_word: "One-word answer",
     short: "Short answer",
-    long: "Answer the following"
-  })[q.type] || "Question";
+    long: "Detailed answer"
+  };
+
+  $("questionType").textContent =
+    labels[q.type] || "Question";
 
   $("slideNumber").textContent =
     "Slide " + q.slideNumber;
@@ -574,9 +636,7 @@ function renderQuestion() {
   $("questionText").textContent =
     q.question;
 
-  $("feedback").className =
-    "feedback hidden";
-
+  $("feedback").className = "feedback hidden";
   $("feedback").replaceChildren();
 
   $("nextBtn").classList.add("hidden");
@@ -589,29 +649,31 @@ function renderQuestion() {
     q.type === "mcq" &&
     Array.isArray(q.options)
   ) {
-    q.options.forEach((option, i) => {
-      const b = document.createElement("button");
+    q.options.forEach((option, index) => {
+      const button = document.createElement("button");
 
-      b.type = "button";
-      b.className = "option";
+      button.type = "button";
+      button.className = "option";
 
-      b.textContent =
-        `${String.fromCharCode(65 + i)}. ${option}`;
+      button.textContent =
+        String.fromCharCode(65 + index) +
+        ". " +
+        option;
 
-      b.addEventListener("click", () => {
+      button.addEventListener("click", () => {
         if (answered) return;
 
-        selected = i;
+        selected = index;
 
         area.querySelectorAll(".option")
-          .forEach(x =>
-            x.classList.remove("selected")
-          );
+          .forEach(item => {
+            item.classList.remove("selected");
+          });
 
-        b.classList.add("selected");
+        button.classList.add("selected");
       });
 
-      area.appendChild(b);
+      area.appendChild(button);
     });
 
   } else {
@@ -619,193 +681,224 @@ function renderQuestion() {
 
     field.id = "writtenAnswer";
     field.className = "answer-input";
+
     field.rows = q.type === "long" ? 7 : 3;
-    field.placeholder = "Type your answer...";
+
+    field.placeholder =
+      "Type your answer here...";
 
     area.appendChild(field);
   }
 }
 
+// --------------------------------------------------
+// SHOW ANSWERS AND EXPLANATIONS
+// --------------------------------------------------
+
 function showFeedback(
-  q, heading, correct = null
+  question,
+  heading,
+  correct = null
 ) {
-  const box = $("feedback");
+  const feedback = $("feedback");
 
-  box.replaceChildren();
+  feedback.replaceChildren();
 
-  box.className =
+  feedback.className =
     "feedback" +
     (correct === null
       ? ""
-      : correct ? " success" : " error");
+      : correct
+        ? " success"
+        : " error");
 
-  addLine(box, heading, "strong");
-  addLine(box, "Answer: " + q.answer);
+  addLine(feedback, heading, "strong");
 
   addLine(
-    box,
-    "Explanation: " + q.explanation
+    feedback,
+    "Correct answer: " + question.answer
   );
 
   addLine(
-    box,
-    `Slide ${q.slideNumber} evidence: "${q.evidence}"`
+    feedback,
+    "Explanation: " + question.explanation
   );
+
+  addLine(
+    feedback,
+    "Source: Slide " + question.slideNumber
+  );
+
+  if (question.evidence) {
+    addLine(
+      feedback,
+      "Slide evidence: " + question.evidence
+    );
+  }
 }
 
-$("submitBtn").addEventListener(
-  "click",
-  () => {
-    if (answered) return;
+// --------------------------------------------------
+// CHECK ANSWER
+// --------------------------------------------------
 
-    const q = questions[position];
+$("submitBtn").addEventListener("click", () => {
+  if (answered) return;
 
-    if (
-      q.type === "mcq" &&
-      Array.isArray(q.options)
-    ) {
-      if (selected < 0) {
-        alert("Choose an option first.");
-        return;
-      }
+  const q = questions[position];
 
-      answered = true;
-
-      const correct =
-        selected === q.correctIndex;
-
-      if (correct) score++;
-
-      $("answerArea")
-        .querySelectorAll(".option")
-        .forEach((b, i) => {
-          b.disabled = true;
-
-          if (i === q.correctIndex) {
-            b.classList.add("correct");
-          }
-
-          if (i === selected && !correct) {
-            b.classList.add("wrong");
-          }
-        });
-
-      showFeedback(
-        q,
-        correct ? "✓ Correct" : "Not quite",
-        correct
-      );
-
-      $("nextBtn").classList.remove("hidden");
-
-    } else {
-      const field = $("writtenAnswer");
-
-      if (!field.value.trim()) {
-        alert("Type your answer first.");
-        return;
-      }
-
-      answered = true;
-      field.disabled = true;
-
-      showFeedback(q, "Compare your answer");
-
-      const box = $("feedback");
-
-      addLine(
-        box,
-        "Did your answer cover the key points?"
-      );
-
-      for (
-        const [label, gotIt] of [
-          ["✓ Yes, I got it right", true],
-          ["I need more practice", false]
-        ]
-      ) {
-        const b = document.createElement("button");
-
-        b.type = "button";
-
-        b.className = gotIt
-          ? "primary"
-          : "secondary";
-
-        b.textContent = label;
-
-        b.onclick = () => {
-          if (gotIt) score++;
-
-          box.querySelectorAll("button")
-            .forEach(x => x.remove());
-
-          $("nextBtn").classList.remove(
-            "hidden"
-          );
-        };
-
-        box.appendChild(b);
-      }
-    }
-
-    $("submitBtn").classList.add("hidden");
-  }
-);
-
-$("nextBtn").addEventListener(
-  "click",
-  () => {
-    position++;
-
-    if (position < questions.length) {
-      renderQuestion();
-      window.scrollTo(0, 0);
+  if (
+    q.type === "mcq" &&
+    Array.isArray(q.options)
+  ) {
+    if (selected < 0) {
+      alert("Please choose an answer first.");
       return;
     }
 
-    $("resultName").textContent =
-      "Well done, " +
-      ($("studentName").value.trim() || "Student") +
-      "!";
+    answered = true;
 
-    $("finalScore").textContent =
-      `${score} / ${questions.length}`;
+    const correct =
+      selected === q.correctIndex;
 
-    $("resultMessage").textContent =
-      "Written answers are self-assessed. Keep practising!";
+    if (correct) score++;
 
-    show($("resultScreen"));
-  }
-);
+    $("answerArea")
+      .querySelectorAll(".option")
+      .forEach((button, index) => {
+        button.disabled = true;
 
-$("restartBtn").addEventListener(
-  "click",
-  () => {
-    position = 0;
-    score = 0;
+        if (index === q.correctIndex) {
+          button.classList.add("correct");
+        }
 
-    renderQuestion();
-    show($("quizScreen"));
-  }
-);
+        if (index === selected && !correct) {
+          button.classList.add("wrong");
+        }
+      });
 
-$("newQuizBtn").addEventListener(
-  "click",
-  () => {
-    questions = [];
-    position = 0;
-    score = 0;
+    showFeedback(
+      q,
+      correct
+        ? "✓ Correct answer!"
+        : "Incorrect answer",
+      correct
+    );
 
-    show($("setupScreen"));
-  }
-);
+    $("nextBtn").classList.remove("hidden");
 
-window.addEventListener(
-  "beforeunload",
-  () => {
-    if (ocrWorker) {
-      ocrWorker.terminate();
+  } else {
+    const field = $("writtenAnswer");
+
+    if (!field.value.trim()) {
+      alert("Please type your answer first.");
+      return;
     }
+
+    answered = true;
+    field.disabled = true;
+
+    showFeedback(
+      q,
+      "Compare your answer with the correct answer"
+    );
+
+    const feedback = $("feedback");
+
+    addLine(
+      feedback,
+      "Did your answer cover the important points?"
+    );
+
+    const choices = [
+      ["✓ Yes, I got it right", true],
+      ["I need more practice", false]
+    ];
+
+    choices.forEach(([label, correct]) => {
+      const button = document.createElement("button");
+
+      button.type = "button";
+
+      button.className =
+        correct ? "primary" : "secondary";
+
+      button.textContent = label;
+
+      button.addEventListener("click", () => {
+        if (correct) score++;
+
+        feedback.querySelectorAll("button")
+          .forEach(item => item.remove());
+
+        $("nextBtn").classList.remove("hidden");
+      });
+
+      feedback.appendChild(button);
+    });
   }
-);
+
+  $("submitBtn").classList.add("hidden");
+});
+
+// --------------------------------------------------
+// NEXT QUESTION
+// --------------------------------------------------
+
+$("nextBtn").addEventListener("click", () => {
+  position++;
+
+  if (position < questions.length) {
+    renderQuestion();
+    window.scrollTo(0, 0);
+    return;
+  }
+
+  const name =
+    $("studentName").value.trim() || "Student";
+
+  $("resultName").textContent =
+    "Well done, " + name + "!";
+
+  $("finalScore").textContent =
+    score + " / " + questions.length;
+
+  $("resultMessage").textContent =
+    "Your quiz is complete. " +
+    "Written answers were self-assessed.";
+
+  show($("resultScreen"));
+});
+
+// --------------------------------------------------
+// RESTART QUIZ
+// --------------------------------------------------
+
+$("restartBtn").addEventListener("click", () => {
+  position = 0;
+  score = 0;
+
+  renderQuestion();
+  show($("quizScreen"));
+});
+
+// --------------------------------------------------
+// CREATE NEW QUIZ
+// --------------------------------------------------
+
+$("newQuizBtn").addEventListener("click", () => {
+  questions = [];
+  position = 0;
+  score = 0;
+
+  show($("setupScreen"));
+});
+
+// --------------------------------------------------
+// CLEAN UP OCR
+// --------------------------------------------------
+
+window.addEventListener("beforeunload", () => {
+  if (ocrWorker) {
+    ocrWorker.terminate();
+  }
+});
